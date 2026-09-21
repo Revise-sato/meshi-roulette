@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>メシ決めルーレット</title>
+<meta name="description" content="ジャンルか全国チェーンからランダムで今日の一食を決めて、そのまま現在地のまわりを地図で探す。">
+<meta name="theme-color" content="#C8442B" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14171A" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="メシ決め">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta property="og:title" content="メシ決めルーレット">
+<meta property="og:description" content="今日のメシ、決めます。ジャンルか全国チェーンからランダムで。">
+<meta property="og:type" content="website">
+<style>
+  html,body{margin:0}
+  :root{padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px)}
+  img{max-width:100%}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --bg:#EDEFE8; --surface:#FFFFFF; --surface2:#F6F7F2;
+    --ink:#1A1D1A; --muted:#6B7268; --line:#D6DACF;
+    --accent:#C8442B; --accent-ink:#FFFFFF;
+    --indigo:#1F4B5F; --gold:#B5821A;
+    --shadow:0 1px 0 rgba(26,29,26,.06), 0 8px 24px -16px rgba(26,29,26,.35);
+    --radius:14px;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14171A; --surface:#1D2126; --surface2:#23282E;
+      --ink:#ECEFE8; --muted:#939B94; --line:#2E353C;
+      --accent:#FF6B4A; --accent-ink:#191007;
+      --indigo:#7FBBD6; --gold:#E3B152;
+      --shadow:0 1px 0 rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.9);
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14171A; --surface:#1D2126; --surface2:#23282E;
+    --ink:#ECEFE8; --muted:#939B94; --line:#2E353C;
+    --accent:#FF6B4A; --accent-ink:#191007;
+    --indigo:#7FBBD6; --gold:#E3B152;
+    --shadow:0 1px 0 rgba(0,0,0,.4), 0 10px 30px -18px rgba(0,0,0,.9);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Noto Sans JP", system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    font-size:15px; line-height:1.7; margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:540px; margin:0 auto; padding:0 16px; padding-block:20px 40px;}
+  h1,h2,h3{margin:0; text-wrap:balance}
+
+  /* header */
+  .head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:18px}
+  .brand h1{font-family:"Dela Gothic One", "Noto Sans JP", sans-serif; font-size:22px; line-height:1.3; letter-spacing:.01em}
+  .brand p{margin:4px 0 0; font-size:12.5px; color:var(--muted)}
+  .theme-btn{
+    flex:none; background:var(--surface); color:var(--muted); border:1px solid var(--line);
+    border-radius:999px; padding:7px 12px; font-size:12px; font-family:inherit; cursor:pointer;
+  }
+  .theme-btn:hover{color:var(--ink)}
+
+  /* mode switch */
+  .modes{display:grid; grid-template-columns:1fr 1fr; gap:6px; background:var(--surface2);
+    border:1px solid var(--line); border-radius:var(--radius); padding:5px; margin-bottom:16px}
+  .mode{
+    appearance:none; border:0; background:transparent; color:var(--muted); font-family:inherit;
+    font-size:13.5px; font-weight:700; padding:11px 8px; border-radius:10px; cursor:pointer; line-height:1.35;
+  }
+  .mode small{display:block; font-weight:400; font-size:11px; opacity:.85; margin-top:2px}
+  .mode[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow)}
+
+  /* result */
+  .stage{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow); overflow:hidden; margin-bottom:14px;
+  }
+  .stage-top{
+    display:flex; align-items:center; gap:8px; padding:10px 16px;
+    border-bottom:1px solid var(--line); background:var(--surface2);
+    font-size:11.5px; color:var(--muted); letter-spacing:.08em;
+  }
+  .stage-top .dot{width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none}
+  .stage-body{padding:26px 18px 20px; text-align:center}
+  .kicker{font-size:11.5px; letter-spacing:.14em; color:var(--muted); min-height:18px}
+  .pick{
+    font-family:"Dela Gothic One", "Noto Sans JP", sans-serif;
+    font-size:clamp(28px, 8.5vw, 42px); line-height:1.25; margin:6px 0 10px;
+    word-break:auto-phrase; overflow-wrap:anywhere;
+  }
+  .pick.rolling{color:var(--muted)}
+  .meta{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; min-height:26px}
+  .tag{
+    font-size:11.5px; padding:3px 9px; border-radius:999px;
+    border:1px solid var(--line); color:var(--muted); background:var(--surface2);
+  }
+  .tag.price{color:var(--gold); border-color:color-mix(in srgb, var(--gold) 35%, var(--line)); font-variant-numeric:tabular-nums}
+  .tag.genre{color:var(--indigo); border-color:color-mix(in srgb, var(--indigo) 35%, var(--line))}
+  .empty{color:var(--muted); font-size:13px; line-height:1.8}
+
+  .actions{display:grid; gap:8px; padding:0 16px 16px}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .btn{
+    font-family:inherit; font-size:14px; font-weight:700; padding:13px 12px; border-radius:11px;
+    border:1px solid var(--line); background:var(--surface2); color:var(--ink); cursor:pointer;
+    text-align:center; text-decoration:none; display:block; line-height:1.4;
+  }
+  .btn:hover{border-color:var(--muted)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.ghost{font-weight:500; font-size:13px; padding:10px; color:var(--muted); background:transparent}
+  .btn[aria-disabled="true"]{opacity:.45; pointer-events:none}
+  .btn:focus-visible, .mode:focus-visible, .chip:focus-visible, .theme-btn:focus-visible{
+    outline:2px solid var(--indigo); outline-offset:2px;
+  }
+
+  /* panels */
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); margin-bottom:12px; overflow:hidden}
+  .panel > summary{
+    list-style:none; cursor:pointer; padding:13px 16px; font-size:13.5px; font-weight:700;
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .panel > summary::-webkit-details-marker{display:none}
+  .panel > summary::after{content:"＋"; color:var(--muted); font-weight:400}
+  .panel[open] > summary::after{content:"−"}
+  .panel > summary .count{font-weight:400; font-size:12px; color:var(--muted)}
+  .panel-body{padding:2px 16px 16px; border-top:1px solid var(--line)}
+  .group{margin-top:14px}
+  .group:first-child{margin-top:10px}
+  .group h3{font-size:11.5px; letter-spacing:.1em; color:var(--muted); font-weight:700; margin-bottom:8px}
+  .chips{display:flex; flex-wrap:wrap; gap:6px}
+  .chip{
+    font-family:inherit; font-size:12.5px; padding:6px 11px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface2); color:var(--muted);
+  }
+  .chip[aria-pressed="true"]{background:var(--indigo); border-color:var(--indigo); color:var(--surface); font-weight:700}
+  .chip.off[aria-pressed="true"]{background:transparent; color:var(--muted); font-weight:400; text-decoration:line-through}
+  .hint{font-size:11.5px; color:var(--muted); margin-top:9px; line-height:1.6}
+
+  /* history */
+  .hist{list-style:none; margin:0; padding:0}
+  .hist li{display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px dashed var(--line); font-size:13px}
+  .hist li:last-child{border-bottom:0}
+  .hist time{color:var(--muted); font-size:11.5px; font-variant-numeric:tabular-nums; flex:none}
+  .foot{font-size:11px; color:var(--muted); text-align:center; margin-top:18px; line-height:1.8}
+  @media (prefers-reduced-motion: reduce){*{animation:none !important; transition:none !important}}
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div class="brand">
+      <h1>今日のメシ、決めます</h1>
+      <p>迷ってる時間がいちばんもったいない。</p>
+    </div>
+    <button class="theme-btn" id="theme" type="button">表示</button>
+  </header>
+
+  <div class="modes" role="group" aria-label="決め方">
+    <button class="mode" id="mode-genre" type="button" aria-pressed="true">
+      近くから決める<small>ジャンルを引いて地図で探す</small>
+    </button>
+    <button class="mode" id="mode-chain" type="button" aria-pressed="false">
+      チェーンから決める<small>全国チェーンから1軒</small>
+    </button>
+  </div>
+
+  <section class="stage">
+    <div class="stage-top"><span class="dot"></span><span id="stage-label">候補をさがしています</span></div>
+    <div class="stage-body">
+      <div class="kicker" id="kicker"></div>
+      <div class="pick" id="pick">—</div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="actions">
+      <a class="btn primary" id="go" href="#" target="_blank" rel="noopener">現在地のまわりで探す</a>
+      <div class="row2">
+        <button class="btn" id="again" type="button">もう一回引く</button>
+        <button class="btn" id="skip" type="button">これは今日パス</button>
+      </div>
+    </div>
+  </section>
+
+  <details class="panel" id="filters">
+    <summary>条件をしぼる <span class="count" id="filter-count"></span></summary>
+    <div class="panel-body">
+      <div class="group">
+        <h3>ジャンル</h3>
+        <div class="chips" id="genre-chips"></div>
+      </div>
+      <div class="group" id="price-group">
+        <h3>予算の目安（ひとり・主観）</h3>
+        <div class="chips" id="price-chips"></div>
+      </div>
+      <div class="group" id="tag-group">
+        <h3>気分・条件（選んだものを全部みたす）</h3>
+        <div class="chips" id="tag-chips"></div>
+      </div>
+      <p class="hint">予算とタグはチェーンを引くときだけ効きます。価格帯はおおよその主観で、実際の値段・営業時間・店舗の有無は各店で確認してください。</p>
+      <button class="btn ghost" id="reset" type="button" style="margin-top:12px">条件をぜんぶ戻す</button>
+    </div>
+  </details>
+
+  <details class="panel" id="ban-panel">
+    <summary>今は出さないチェーン <span class="count" id="ban-count"></span></summary>
+    <div class="panel-body">
+      <p class="hint" style="margin-top:10px">「これは今日パス」を押したチェーンがここに溜まります。もう一度押すと復帰します。</p>
+      <div class="chips" id="ban-chips" style="margin-top:10px"></div>
+    </div>
+  </details>
+
+  <details class="panel" id="hist-panel">
+    <summary>これにした履歴 <span class="count" id="hist-count"></span></summary>
+    <div class="panel-body">
+      <ul class="hist" id="hist"></ul>
+      <button class="btn ghost" id="clear-hist" type="button" style="margin-top:10px">履歴を消す</button>
+    </div>
+  </details>
+
+  <p class="foot">
+    直近に出たものはしばらく出ません。<br>
+    店をさがすところは Google マップ（現在地のまわり）に投げています。
+  </p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var GENRES = [
+    {k:"ramen",    label:"ラーメン",     q:"ラーメン"},
+    {k:"gyudon",   label:"牛丼・丼もの", q:"牛丼"},
+    {k:"teishoku", label:"定食",         q:"定食"},
+    {k:"men",      label:"うどん・そば", q:"うどん そば"},
+    {k:"curry",    label:"カレー",       q:"カレー"},
+    {k:"sushi",    label:"寿司",         q:"寿司"},
+    {k:"yakiniku", label:"焼肉",         q:"焼肉"},
+    {k:"age",      label:"とんかつ・揚げ物", q:"とんかつ"},
+    {k:"chuka",    label:"中華",         q:"中華料理"},
+    {k:"family",   label:"ファミレス",   q:"ファミリーレストラン"},
+    {k:"burger",   label:"ハンバーガー", q:"ハンバーガー"},
+    {k:"yoshoku",  label:"ステーキ・洋食", q:"ステーキ 洋食"},
+    {k:"pasta",    label:"パスタ・イタリアン", q:"イタリアン パスタ"},
+    {k:"pizza",    label:"ピザ",         q:"ピザ"},
+    {k:"cafe",     label:"カフェ・軽食", q:"カフェ"},
+    {k:"izakaya",  label:"居酒屋",       q:"居酒屋"},
+    {k:"nagoya",   label:"名古屋めし",   q:"名古屋めし"}
+  ];
+
+  var TAGS = [
+    {k:"solo",    label:"ひとりで入りやすい"},
+    {k:"fast",    label:"すぐ出てくる"},
+    {k:"gatsuri", label:"がっつり"},
+    {k:"light",   label:"軽め"},
+    {k:"veg",     label:"野菜がとれる"},
+    {k:"morning", label:"朝から"},
+    {k:"late",    label:"夜おそく"},
+    {k:"group",   label:"複数人・家族"},
+    {k:"drink",   label:"飲める"},
+    {k:"takeout", label:"持ち帰り"}
+  ];
+
+  var PRICES = [
+    {k:1, label:"〜1,000円"},
+    {k:2, label:"1,000〜2,000円"},
+    {k:3, label:"2,000円〜"}
+  ];
+
+  // n=名前 g=ジャンル p=予算目安 t=タグ
+  var CHAINS = [
+    {n:"一蘭",g:"ramen",p:2,t:["solo","late"]},
+    {n:"一風堂",g:"ramen",p:2,t:["solo"]},
+    {n:"天下一品",g:"ramen",p:2,t:["gatsuri","late","solo"]},
+    {n:"幸楽苑",g:"ramen",p:1,t:["fast","group","solo"]},
+    {n:"日高屋",g:"ramen",p:1,t:["fast","late","drink","solo"]},
+    {n:"丸源ラーメン",g:"ramen",p:2,t:["group","solo"]},
+    {n:"町田商店",g:"ramen",p:2,t:["gatsuri","solo"]},
+    {n:"ラーメン山岡家",g:"ramen",p:2,t:["gatsuri","late","solo"]},
+    {n:"魁力屋",g:"ramen",p:2,t:["solo"]},
+    {n:"スガキヤ",g:"ramen",p:1,t:["fast","light","solo","group"]},
+
+    {n:"吉野家",g:"gyudon",p:1,t:["fast","solo","morning","late","takeout"]},
+    {n:"すき家",g:"gyudon",p:1,t:["fast","solo","morning","late","takeout"]},
+    {n:"松屋",g:"gyudon",p:1,t:["fast","solo","morning","late","takeout"]},
+    {n:"なか卯",g:"gyudon",p:1,t:["fast","solo","morning","light"]},
+    {n:"伝説のすた丼屋",g:"gyudon",p:2,t:["gatsuri","solo","late"]},
+    {n:"天丼てんや",g:"gyudon",p:1,t:["fast","solo","takeout"]},
+
+    {n:"大戸屋",g:"teishoku",p:2,t:["veg","solo","light","group"]},
+    {n:"やよい軒",g:"teishoku",p:1,t:["fast","solo","gatsuri","morning"]},
+    {n:"まいどおおきに食堂",g:"teishoku",p:1,t:["solo","veg","light"]},
+    {n:"から好し",g:"teishoku",p:1,t:["gatsuri","takeout","solo"]},
+    {n:"ザ・めしや",g:"teishoku",p:1,t:["solo","veg","late"]},
+    {n:"宮本むなし",g:"teishoku",p:1,t:["gatsuri","solo","late"]},
+
+    {n:"丸亀製麺",g:"men",p:1,t:["fast","solo","light","group","takeout"]},
+    {n:"はなまるうどん",g:"men",p:1,t:["fast","solo","light"]},
+    {n:"ゆで太郎",g:"men",p:1,t:["fast","solo","morning","light"]},
+    {n:"名代 富士そば",g:"men",p:1,t:["fast","solo","late","light"]},
+    {n:"小諸そば",g:"men",p:1,t:["fast","solo","light"]},
+    {n:"どんどん庵",g:"men",p:1,t:["fast","solo","light"]},
+
+    {n:"CoCo壱番屋",g:"curry",p:2,t:["solo","gatsuri","group","takeout"]},
+    {n:"ゴーゴーカレー",g:"curry",p:2,t:["gatsuri","solo"]},
+    {n:"日乃屋カレー",g:"curry",p:1,t:["gatsuri","solo","fast"]},
+    {n:"カレーハウス リトルスプーン",g:"curry",p:2,t:["solo","takeout"]},
+
+    {n:"スシロー",g:"sushi",p:2,t:["group","solo","takeout"]},
+    {n:"はま寿司",g:"sushi",p:1,t:["group","solo","takeout"]},
+    {n:"くら寿司",g:"sushi",p:2,t:["group","solo","takeout"]},
+    {n:"かっぱ寿司",g:"sushi",p:1,t:["group","solo"]},
+    {n:"魚べい",g:"sushi",p:2,t:["group","solo","fast"]},
+    {n:"海鮮三崎港",g:"sushi",p:2,t:["solo","group"]},
+    {n:"すし銚子丸",g:"sushi",p:3,t:["group","drink"]},
+
+    {n:"焼肉きんぐ",g:"yakiniku",p:3,t:["group","gatsuri","drink"]},
+    {n:"牛角",g:"yakiniku",p:3,t:["group","drink","gatsuri"]},
+    {n:"安楽亭",g:"yakiniku",p:2,t:["group","gatsuri"]},
+    {n:"あみやき亭",g:"yakiniku",p:3,t:["group","drink","gatsuri"]},
+    {n:"焼肉ライク",g:"yakiniku",p:2,t:["solo","fast","gatsuri"]},
+    {n:"カルビ大将",g:"yakiniku",p:3,t:["group","drink"]},
+
+    {n:"かつや",g:"age",p:1,t:["fast","solo","gatsuri","takeout"]},
+    {n:"松のや",g:"age",p:1,t:["fast","solo","gatsuri","late"]},
+    {n:"とんかつ和幸",g:"age",p:3,t:["group","gatsuri"]},
+    {n:"とんかつ新宿さぼてん",g:"age",p:2,t:["takeout","group"]},
+    {n:"かつさと",g:"age",p:2,t:["solo","gatsuri"]},
+
+    {n:"餃子の王将",g:"chuka",p:1,t:["fast","solo","gatsuri","drink","group"]},
+    {n:"大阪王将",g:"chuka",p:1,t:["fast","solo","takeout","group"]},
+    {n:"バーミヤン",g:"chuka",p:2,t:["group","drink","veg"]},
+    {n:"中華食堂 一番館",g:"chuka",p:1,t:["solo","drink","late"]},
+    {n:"開楽",g:"chuka",p:2,t:["solo","gatsuri"]},
+
+    {n:"ガスト",g:"family",p:2,t:["group","morning","late","veg","solo"]},
+    {n:"サイゼリヤ",g:"family",p:1,t:["group","drink","veg","light","solo"]},
+    {n:"ジョナサン",g:"family",p:2,t:["group","morning","veg"]},
+    {n:"デニーズ",g:"family",p:2,t:["group","morning","late"]},
+    {n:"ココス",g:"family",p:2,t:["group","morning","veg"]},
+    {n:"ロイヤルホスト",g:"family",p:3,t:["group","morning","veg"]},
+    {n:"びっくりドンキー",g:"family",p:2,t:["group","gatsuri","solo"]},
+    {n:"和食さと",g:"family",p:2,t:["group","veg"]},
+    {n:"夢庵",g:"family",p:2,t:["group","veg","light"]},
+
+    {n:"マクドナルド",g:"burger",p:1,t:["fast","solo","morning","late","takeout"]},
+    {n:"モスバーガー",g:"burger",p:1,t:["solo","veg","takeout"]},
+    {n:"ケンタッキーフライドチキン",g:"burger",p:2,t:["gatsuri","takeout","solo"]},
+    {n:"バーガーキング",g:"burger",p:2,t:["gatsuri","solo","takeout"]},
+    {n:"ロッテリア",g:"burger",p:1,t:["solo","takeout"]},
+    {n:"フレッシュネスバーガー",g:"burger",p:2,t:["solo","veg"]},
+    {n:"サブウェイ",g:"burger",p:1,t:["light","veg","solo","takeout"]},
+    {n:"ドムドムハンバーガー",g:"burger",p:1,t:["solo","takeout"]},
+    {n:"ファーストキッチン",g:"burger",p:1,t:["solo","light"]},
+
+    {n:"いきなり！ステーキ",g:"yoshoku",p:3,t:["gatsuri","solo"]},
+    {n:"ペッパーランチ",g:"yoshoku",p:2,t:["gatsuri","solo","fast"]},
+    {n:"ステーキガスト",g:"yoshoku",p:2,t:["group","gatsuri","veg"]},
+    {n:"ブロンコビリー",g:"yoshoku",p:3,t:["group","gatsuri","veg"]},
+    {n:"ステーキのどん",g:"yoshoku",p:2,t:["group","gatsuri"]},
+
+    {n:"洋麺屋五右衛門",g:"pasta",p:2,t:["solo","light"]},
+    {n:"カプリチョーザ",g:"pasta",p:3,t:["group","drink"]},
+    {n:"鎌倉パスタ",g:"pasta",p:2,t:["group","light"]},
+    {n:"サイゼリヤ（パスタ）",g:"pasta",p:1,t:["solo","light","drink"]},
+
+    {n:"ピザーラ",g:"pizza",p:3,t:["group","takeout"]},
+    {n:"ドミノ・ピザ",g:"pizza",p:3,t:["group","takeout"]},
+    {n:"ピザハット",g:"pizza",p:3,t:["group","takeout"]},
+    {n:"ナポリの窯",g:"pizza",p:3,t:["group","takeout"]},
+
+    {n:"コメダ珈琲店",g:"cafe",p:2,t:["morning","solo","group","light"]},
+    {n:"星乃珈琲店",g:"cafe",p:2,t:["morning","solo","light"]},
+    {n:"ドトールコーヒーショップ",g:"cafe",p:1,t:["fast","solo","morning","light"]},
+    {n:"スターバックス",g:"cafe",p:2,t:["solo","morning","light","takeout"]},
+    {n:"タリーズコーヒー",g:"cafe",p:2,t:["solo","morning","light"]},
+    {n:"サンマルクカフェ",g:"cafe",p:1,t:["solo","light","fast"]},
+    {n:"喫茶室ルノアール",g:"cafe",p:2,t:["solo","light"]},
+    {n:"ミスタードーナツ",g:"cafe",p:1,t:["light","takeout","solo"]},
+    {n:"築地銀だこ",g:"cafe",p:1,t:["fast","takeout","light","solo"]},
+
+    {n:"鳥貴族",g:"izakaya",p:2,t:["group","drink","late"]},
+    {n:"串カツ田中",g:"izakaya",p:3,t:["group","drink","late"]},
+    {n:"磯丸水産",g:"izakaya",p:3,t:["group","drink","late"]},
+    {n:"塚田農場",g:"izakaya",p:3,t:["group","drink"]},
+    {n:"白木屋",g:"izakaya",p:2,t:["group","drink","late"]},
+    {n:"魚民",g:"izakaya",p:2,t:["group","drink","late"]},
+    {n:"一軒め酒場",g:"izakaya",p:1,t:["solo","drink","late"]},
+
+    {n:"矢場とん",g:"nagoya",p:3,t:["gatsuri","group","solo"]},
+    {n:"山本屋本店",g:"nagoya",p:3,t:["gatsuri","solo"]},
+    {n:"風来坊",g:"nagoya",p:3,t:["group","drink","late"]},
+    {n:"世界の山ちゃん",g:"nagoya",p:2,t:["group","drink","late"]},
+    {n:"台湾ラーメン 味仙",g:"nagoya",p:2,t:["group","drink","late","gatsuri"]},
+    {n:"あんかけスパ ヨコイ",g:"nagoya",p:2,t:["gatsuri","solo"]},
+    {n:"あんかけスパ チャオ",g:"nagoya",p:1,t:["fast","solo","gatsuri"]},
+    {n:"パスタ・デ・ココ",g:"nagoya",p:1,t:["solo","fast","gatsuri"]},
+    {n:"コンパル",g:"nagoya",p:1,t:["morning","solo","light"]},
+    {n:"喫茶マウンテン",g:"nagoya",p:2,t:["gatsuri","group"]},
+    {n:"まるは食堂",g:"nagoya",p:3,t:["group","gatsuri"]}
+  ];
+
+  var LS_KEY = "meshi-roulette-v1";
+  var AVOID_RECENT = 6;
+
+  var state = {
+    mode: "genre",
+    genres: {},          // key -> true(選択中) ※空＝全部
+    prices: {},
+    tags: {},
+    banned: {},
+    history: [],
+    recent: [],
+    theme: null
+  };
+  var current = null;
+
+  /* ---------- storage ---------- */
+  function load(){
+    try{
+      var raw = localStorage.getItem(LS_KEY);
+      if(!raw) return;
+      var o = JSON.parse(raw);
+      ["mode","genres","prices","tags","banned","theme"].forEach(function(k){
+        if(o && o[k] != null) state[k] = o[k];
+      });
+      if(o && Array.isArray(o.history)) state.history = o.history.slice(0,20);
+    }catch(e){/* 保存が使えない環境でもそのまま動かす */}
+  }
+  function save(){
+    try{
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        mode:state.mode, genres:state.genres, prices:state.prices, tags:state.tags,
+        banned:state.banned, history:state.history.slice(0,20), theme:state.theme
+      }));
+    }catch(e){}
+  }
+
+  /* ---------- helpers ---------- */
+  function $(id){ return document.getElementById(id); }
+  function keys(o){ return Object.keys(o).filter(function(k){ return o[k]; }); }
+  function genreLabel(k){
+    for(var i=0;i<GENRES.length;i++) if(GENRES[i].k === k) return GENRES[i].label;
+    return k;
+  }
+  function genreQuery(k){
+    for(var i=0;i<GENRES.length;i++) if(GENRES[i].k === k) return GENRES[i].q;
+    return k;
+  }
+  function priceLabel(p){
+    for(var i=0;i<PRICES.length;i++) if(PRICES[i].k === p) return PRICES[i].label;
+    return "";
+  }
+  function tagLabel(k){
+    for(var i=0;i<TAGS.length;i++) if(TAGS[i].k === k) return TAGS[i].label;
+    return k;
+  }
+  function mapsUrl(q){
+    return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
+  }
+
+  /* ---------- candidates ---------- */
+  function candidates(){
+    var gs = keys(state.genres);
+    if(state.mode === "genre"){
+      var pool = GENRES.filter(function(g){ return gs.length === 0 || state.genres[g.k]; });
+      return pool.map(function(g){ return {id:"g:"+g.k, name:g.label, query:g.q, genre:g.k}; });
+    }
+    var ps = keys(state.prices).map(Number);
+    var ts = keys(state.tags);
+    return CHAINS.filter(function(c){
+      if(state.banned[c.n]) return false;
+      if(gs.length && !state.genres[c.g]) return false;
+      if(ps.length && ps.indexOf(c.p) === -1) return false;
+      for(var i=0;i<ts.length;i++) if(c.t.indexOf(ts[i]) === -1) return false;
+      return true;
+    }).map(function(c){
+      return {id:"c:"+c.n, name:c.n, query:c.n, genre:c.g, price:c.p, tags:c.t};
+    });
+  }
+
+  function draw(){
+    var pool = candidates();
+    if(!pool.length) return null;
+    var fresh = pool.filter(function(x){ return state.recent.indexOf(x.id) === -1; });
+    var use = fresh.length ? fresh : pool;          // 出し尽くしたら直近しばりを解く
+    if(use.length > 1 && current){
+      var other = use.filter(function(x){ return x.id !== current.id; });
+      if(other.length) use = other;                 // 同じものを続けて出さない
+    }
+    return use[Math.floor(Math.random()*use.length)];
+  }
+
+  /* ---------- render ---------- */
+  function renderResult(item, rolling){
+    var pick = $("pick"), meta = $("meta"), kicker = $("kicker"), go = $("go");
+    pick.classList.toggle("rolling", !!rolling);
+
+    if(!item){
+      kicker.textContent = "";
+      pick.textContent = "候補がありません";
+      meta.innerHTML = '<span class="empty">条件がきつすぎます。「条件をしぼる」から少しゆるめてください。</span>';
+      go.setAttribute("aria-disabled","true");
+      go.removeAttribute("href");
+      $("skip").setAttribute("aria-disabled","true");
+      return;
+    }
+
+    pick.textContent = item.name;
+    go.setAttribute("href", mapsUrl(item.query));
+    go.removeAttribute("aria-disabled");
+
+    if(rolling){ return; }
+
+    if(state.mode === "genre"){
+      kicker.textContent = "今日はこのジャンル";
+      go.textContent = "近くの「" + item.name + "」を探す";
+      meta.innerHTML = '<span class="tag">現在地のまわりを Google マップで検索します</span>';
+      $("skip").setAttribute("aria-disabled","true");
+    }else{
+      kicker.textContent = genreLabel(item.genre);
+      go.textContent = "近くの店舗を探す";
+      var html = '<span class="tag price">' + priceLabel(item.price) + '</span>';
+      html += item.tags.slice(0,3).map(function(t){
+        return '<span class="tag">' + tagLabel(t) + '</span>';
+      }).join("");
+      meta.innerHTML = html;
+      $("skip").removeAttribute("aria-disabled");
+    }
+  }
+
+  function setCurrent(item){
+    current = item;
+    if(item){
+      state.recent.unshift(item.id);
+      state.recent = state.recent.slice(0, AVOID_RECENT);
+    }
+    renderResult(item, false);
+  }
+
+  var rollTimer = null;
+  function roll(){
+    if(rollTimer){ clearTimeout(rollTimer); rollTimer = null; }
+    var target = draw();
+    if(!target){ current = null; renderResult(null,false); return; }
+
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduce){ setCurrent(target); return; }
+
+    var pool = candidates();
+    var delay = 55, elapsed = 0;
+    $("kicker").textContent = "…";
+    (function step(){
+      var shown = pool[Math.floor(Math.random()*pool.length)];
+      renderResult(shown, true);
+      elapsed += delay;
+      delay = delay * 1.28;
+      if(elapsed < 620){
+        rollTimer = setTimeout(step, delay);
+      }else{
+        rollTimer = null;
+        setCurrent(target);
+      }
+    })();
+  }
+
+  function renderChips(){
+    var gc = $("genre-chips");
+    gc.innerHTML = "";
+    GENRES.forEach(function(g){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = g.label;
+      b.setAttribute("aria-pressed", state.genres[g.k] ? "true" : "false");
+      b.addEventListener("click", function(){
+        state.genres[g.k] = !state.genres[g.k];
+        renderChips(); updateCounts(); save(); roll();
+      });
+      gc.appendChild(b);
+    });
+
+    var pc = $("price-chips");
+    pc.innerHTML = "";
+    PRICES.forEach(function(p){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = p.label;
+      b.setAttribute("aria-pressed", state.prices[p.k] ? "true" : "false");
+      b.addEventListener("click", function(){
+        state.prices[p.k] = !state.prices[p.k];
+        renderChips(); updateCounts(); save(); roll();
+      });
+      pc.appendChild(b);
+    });
+
+    var tc = $("tag-chips");
+    tc.innerHTML = "";
+    TAGS.forEach(function(t){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = t.label;
+      b.setAttribute("aria-pressed", state.tags[t.k] ? "true" : "false");
+      b.addEventListener("click", function(){
+        state.tags[t.k] = !state.tags[t.k];
+        renderChips(); updateCounts(); save(); roll();
+      });
+      tc.appendChild(b);
+    });
+
+    var bc = $("ban-chips"), banned = keys(state.banned);
+    bc.innerHTML = "";
+    if(!banned.length){
+      bc.innerHTML = '<span class="empty">まだありません。</span>';
+    }else{
+      banned.forEach(function(name){
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "chip off"; b.textContent = name;
+        b.setAttribute("aria-pressed","true");
+        b.addEventListener("click", function(){
+          delete state.banned[name];
+          renderChips(); updateCounts(); save();
+        });
+        bc.appendChild(b);
+      });
+    }
+  }
+
+  function renderHistory(){
+    var ul = $("hist");
+    ul.innerHTML = "";
+    if(!state.history.length){
+      ul.innerHTML = '<li><span class="empty">まだありません。「現在地のまわりで探す」を押すと残ります。</span></li>';
+    }else{
+      state.history.slice(0,8).forEach(function(h){
+        var li = document.createElement("li");
+        var s = document.createElement("span"); s.textContent = h.name;
+        var t = document.createElement("time"); t.textContent = h.at;
+        li.appendChild(s); li.appendChild(t); ul.appendChild(li);
+      });
+    }
+    $("hist-count").textContent = state.history.length ? state.history.length + "件" : "";
+  }
+
+  function updateCounts(){
+    var n = keys(state.genres).length + keys(state.prices).length + keys(state.tags).length;
+    $("filter-count").textContent = n ? n + "件えらび中" : "指定なし（ぜんぶ）";
+    var pool = candidates();
+    $("stage-label").textContent = state.mode === "genre"
+      ? "ジャンル " + pool.length + " 通りから"
+      : "チェーン " + pool.length + " 軒から";
+    var b = keys(state.banned).length;
+    $("ban-count").textContent = b ? b + "件" : "";
+    $("price-group").hidden = state.mode === "genre";
+    $("tag-group").hidden = state.mode === "genre";
+  }
+
+  function setMode(m){
+    state.mode = m;
+    $("mode-genre").setAttribute("aria-pressed", m === "genre" ? "true" : "false");
+    $("mode-chain").setAttribute("aria-pressed", m === "chain" ? "true" : "false");
+    state.recent = [];
+    current = null;
+    updateCounts(); save(); roll();
+  }
+
+  function applyTheme(){
+    if(state.theme === "dark" || state.theme === "light"){
+      document.documentElement.setAttribute("data-theme", state.theme);
+    }else{
+      document.documentElement.removeAttribute("data-theme");
+    }
+    var l = state.theme === "dark" ? "濃いめ" : state.theme === "light" ? "明るめ" : "表示";
+    $("theme").textContent = l;
+  }
+
+  /* ---------- wire ---------- */
+  load();
+  applyTheme();
+  renderChips();
+  renderHistory();
+  $("mode-genre").setAttribute("aria-pressed", state.mode === "genre" ? "true" : "false");
+  $("mode-chain").setAttribute("aria-pressed", state.mode === "chain" ? "true" : "false");
+  updateCounts();
+  setCurrent(draw());
+
+  $("mode-genre").addEventListener("click", function(){ setMode("genre"); });
+  $("mode-chain").addEventListener("click", function(){ setMode("chain"); });
+  $("again").addEventListener("click", roll);
+
+  $("skip").addEventListener("click", function(){
+    if(state.mode !== "chain" || !current) return;
+    state.banned[current.name] = true;
+    renderChips(); updateCounts(); save(); roll();
+  });
+
+  $("go").addEventListener("click", function(){
+    if(!current) return;
+    var d = new Date();
+    var at = (d.getMonth()+1) + "/" + d.getDate() + " " +
+             ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2);
+    state.history.unshift({name: current.name, at: at});
+    state.history = state.history.slice(0,20);
+    renderHistory(); save();
+  });
+
+  $("reset").addEventListener("click", function(){
+    state.genres = {}; state.prices = {}; state.tags = {};
+    renderChips(); updateCounts(); save(); roll();
+  });
+
+  $("clear-hist").addEventListener("click", function(){
+    state.history = []; renderHistory(); save();
+  });
+
+  $("theme").addEventListener("click", function(){
+    state.theme = state.theme === "dark" ? "light" : state.theme === "light" ? null : "dark";
+    applyTheme(); save();
+  });
+})();
+</script>
+
+<script>
+if("serviceWorker" in navigator){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("./sw.js").catch(function(){ /* オフライン化できなくても本体は動く */ });
+  });
+}
+</script>
+</body>
+</html>
